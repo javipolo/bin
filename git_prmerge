@@ -1,0 +1,32 @@
+#!/bin/bash
+# Merge last github pull request open using the current branch as head
+# Uses hub https://hub.github.com/
+
+# Stop if empty variable
+set -u
+# Stop on error
+set -e
+
+head_branch=$(git rev-parse --abbrev-ref HEAD)
+base_branch=$(hub pr list -h $head_branch -L1 -f '%B')
+pr_url=$(hub pr list -h $head_branch -L1 -f '%U')
+
+echo "MERGE: $head_branch -> $base_branch - $pr_url"
+echo ""
+echo "Updating $base_branch"
+git checkout $base_branch
+git pull
+echo ""
+echo "Merge"
+hub merge $pr_url
+echo ""
+echo "Push"
+git push
+
+echo ""
+echo "Cleanup remote and local"
+# Cleanup
+git push origin --delete $head_branch
+# Remove local merged branches
+git branch --merged|grep -v '*'| tr -d ' ' | grep -xvE 'master|develop|production|staging' | xargs -r git br -d
+

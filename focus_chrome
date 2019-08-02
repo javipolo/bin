@@ -1,0 +1,5 @@
+#!/bin/bash
+
+NUM_CHROME=${1:-1}
+
+wmctrl -i -a $(wmctrl -l|grep -i chrome|head -n${NUM_CHROME} | tail -n1|cut -d ' ' -f 1)

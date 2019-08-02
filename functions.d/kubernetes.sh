@@ -1,0 +1,177 @@
+# Kubernetes shit
+KUBEDIR=~/.kube
+EXTRA_NAMESPACES="staging ci"
+KUBERNETES_NAMESPACE_F=$KUBEDIR/.namespace
+KUBERNETES_NAMESPACES_F=$KUBEDIR/.namespaces
+KUBERNETES_CONTEXT_F=$KUBEDIR/.context
+KUBERNETES_KUBECTL_DEFAULT=kubectl-1.14.1
+
+source <(kubectl completion bash)
+
+# kls # List all defined contexts
+alias kls="kubectl config get-contexts -o name"
+
+# krunonce <arguments> # Run once an image on the cluster, and delete it when it finishes
+alias krunonce="kubectl run --rm --restart=Never -it"
+
+# Cache stuff in files to faster use in other places (command line prompt, ...)
+k_get_context(){ grep ^current-context ${KUBECONFIG:-~/.kube/config}|cut -d ' ' -f 2| tr -d \\n; }
+k_get_context_fast(){ cat $KUBERNETES_CONTEXT_F; }
+k_get_namespace(){ kubectl config get-contexts|grep '^*'| awk '{print $NF}'; }
+k_get_namespace_fast(){ cat $KUBERNETES_NAMESPACE_F; }
+k_write_fasts(){ k_get_context > $KUBERNETES_CONTEXT_F; k_get_namespace > $KUBERNETES_NAMESPACE_F; }
+k_write_namespaces(){ echo "$(kubectl get namespaces -o name | cut -d / -f 2) $EXTRA_NAMESPACES" > $KUBERNETES_NAMESPACES_F; }
+[ -f $KUBERNETES_NAMESPACES_F ] || k_write_namespaces
+
+# kch [context] # Change kubernetes cluster
+kch(){
+    kubectl config use-context $@
+    k_write_fasts
+}
+complete -W "$(kubectl config get-contexts -o name)" kch
+
+# kns <namespace> [context] # Change default namespace
+kns(){
+    local namespace=${1:-default}
+    local context=${2:-$(k_get_context)}
+    kubectl config set-context $context --namespace=${namespace}
+    k_write_fasts
+}
+complete -W "$(cat $KUBERNETES_NAMESPACES_F)" kns
+
+# Shortcut to kubectl, allowing different versions of the client
+k(){
+    case $(k_get_context_fast) in
+        payp) _kubectl=kubectl-1.9.2;;
+        *) _kubectl=$KUBERNETES_KUBECTL_DEFAULT;;
+    esac
+    $_kubectl $@
+}
+
+# kshell <pod> [command] # Exec command on pod (default: bash)
+kshell(){
+    if [ $# -gt 0 ]; then
+        kubectl exec -it $1 ${2:-bash}
+    fi
+}
+complete -F _k kshell
+
+# custom completion for "k"
+_k(){
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    case "$prev" in
+        -f)
+            _filedir;;
+        get)
+            opts="clusters cm componentstatuses configmaps cs daemonsets deploy deployments ds endpoints ep ev events horizontalpodautoscalers hpa ing ingress jobs jobs limitranges limits namespaces no nodes ns persistentvolumeclaims persistentvolumes statefulset sts po pods pv pvc quota quota quota rc replicasets replicationcontrollers resourcequotas rs sa secrets serviceaccounts services svc"
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            ;;
+        deploy|deployment)
+            opts="$(kubectl get deploy|grep -v NAME|cut -d ' ' -f 1)"
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            ;;
+        *)
+            opts="$(kubectl get pods|grep -v NAME|cut -d ' ' -f 1)"
+            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            ;;
+    esac
+    return 0
+}
+complete -F _k k
+
+# decode kubernetes secret
+decode_kubernetes_secret(){
+    if [ "$1" == "-j" ]; then
+        shift
+        command="k get secret -o json $@"
+        for key in $( $command | jq -r '.data | keys[]'); do
+            echo ""
+            echo $key
+            echo $key|tr '[:print:]' =
+            $command | jq -r '.data."'${key}'"' | base64 -d
+            echo ""
+        done
+    elif [ "$1" == "--cert" ]; then
+        shift
+        command="k get secret -o json $@"
+        key=tls.crt
+        $command | jq -r '.data."'${key}'"' | base64 -d
+    elif [ "$1" == "--key" ]; then
+        shift
+        command="k get secret -o json $@"
+        key=tls.key
+        $command | jq -r '.data."'${key}'"' | base64 -d
+    else
+        command="k get secret -o json $@"
+        $command | jq '.data | map_values(@base64d)'
+    fi
+}
+alias ds=decode_kubernetes_secret
+
+# check if deploy has all replicas ready
+k_check_deploy(){
+    k get deploy $1 -o json | jq -r .status.unavailableReplicas | grep -qx null
+}
+
+# wait until deploy has all replicas ready
+k_waitfor_deploy(){
+    while ! k_check_deploy $1; do
+        sleep 1
+    done
+}
+
+k_get_labels(){
+    k get $1 $2 --show-labels|tail -n1|awk '{print $NF}'
+}
+
+# Performs a delete of all of the pods of a deployment in a "rolling restart" fashion, one by one
+k_rolling_delete_deployment(){
+    deployment=$1
+    labels=$(k_get_labels deploy $deployment)
+    if [ "$labels" ]; then
+        for pod in $(k get po -o name -l $labels); do
+            k delete $pod
+            k_waitfor_deploy $deployment
+        done
+    else
+        echo "ERROR: No pods with labels $labels"
+    fi
+}
+
+k_node_selector(){
+    export node_selector=$@
+    ns_template='"spec": {"template": { "spec": { "nodeSelector": { ${node_selector} } } } }'
+    echo $ns_template | envsubst | tr -d ' '
+}
+
+# kdebug [-i image] [-n name_of_pod] [-s fast_node_selector] [-ns node_selector] # Run debug container
+kdebug(){
+    image=javipolo/ubuntu-debug
+    name=javipolo
+
+    if [ "$1" == "-d" ]; then
+        debug="echo "
+        shift;
+    fi
+
+    if [ "$1" == "-i" ]; then
+        image=$2
+        shift; shift;
+    fi
+
+    if [ "$1" == "-n" ]; then
+        name=$2
+        shift; shift;
+    fi
+
+    if [ "$1" == "-ns" ]; then
+        node_selector=$(k_node_selector $(k_node_selector $2))
+        extra_args="--overrides={$node_selector}"
+        shift; shift;
+    fi
+
+    krunonce $extra_args --image $image $name
+}

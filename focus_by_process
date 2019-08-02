@@ -1,0 +1,5 @@
+#!/bin/bash
+
+window_num=$(wmctrl -l -p| awk '{ if ($3 == "'$(pgrep $1|head -n1)'") {print $1} }')
+
+wmctrl -i -a $window_num

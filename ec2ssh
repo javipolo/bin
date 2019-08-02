@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# Connect to ec2 instances using either InstanceId, Name tag or Ip address
+# We try all the ssh keys available in a directory supplied by the env variable SSH_KEYDIR
+
+# Usage:
+#    - ec2ssh i-123124123123
+#    - ec2ssh [-n 2] name_tag
+#    - ec2ssh IP
+
+docopts=0
+colors=1
+opts="-o StrictHostKeyChecking=false"
+[ "$REGION" ] && region="--region=$REGION"
+aws="aws $region"
+keys=$SSH_KEYDIR/*
+
+if [ "$docopts" == "1" ]; then 
+    eval "$(docopts -V - -h - : "$@" <<EOF
+Usage: ec2ssh [options] <host> [command]
+
+    --host-num -n num   Connect to num instance that matches (for name tag) [Default: 1]
+    --user -u user      Connect as username [Default: ubuntu]
+
+    Host can be either:
+        - Instance ID
+        - Name tag
+        - DNS name
+        - IP address
+
+    Example:
+        ec2ssh -n 3 -u core i-12313321
+----
+ec2ssh 0.1
+EOF
+)"
+else
+    user=${ec2_user:-ubuntu}
+    [ "$1" == "-n" ] && { host_num=$2; shift; shift; }
+    host=$1
+    shift
+fi
+
+show_host_list(){
+    if [ "$colors" == "1" ]; then 
+        c_not='\e[38;5;204m'
+        c_this='\e[1;38;5;121m'
+        c_off='\e[0m'
+    else
+        c_not=""
+        c_this=""
+        c_off=""
+    fi
+    for h in $hosts; do
+        if [ "$h" == "$host" ]; then
+            show_hosts="$show_hosts --> ${c_this}${h}${c_off} <--"
+        else
+            show_hosts="$show_hosts ${c_not}${h}${c_off}"
+        fi
+    done
+    echo -e "HOSTS: $show_hosts"
+}
+
+if echo $host | grep -e "^i-" -q; then
+    # This is a instance ID
+    host=$($aws ec2 describe-instances \
+        --filter "Name=instance-state-name,Values=running" \
+        --query "Reservations[*].Instances[*].PublicIpAddress" \
+        --instance-id $host  --output text)
+    hosts=$host
+elif echo $host | grep -P "^([0-9]+\.){3}[0-9]+" -q; then
+    # Or an IP address
+    hosts=$host
+elif [ "$(dig +short $host)" ]; then
+    # or a DNS name that resolves
+    hosts=$host
+else
+    # Everything else should be an instance name
+    hosts=$($aws ec2 describe-instances \
+        --filter "Name=instance-state-name,Values=running" \
+        --filter "Name=tag:Name,Values=$host" \
+        --query "Reservations[*].Instances[*].PublicIpAddress" \
+        --output text \
+        | sort -n )
+    host=$(echo "$hosts" | head -n${host_num:-1} | tail -n1)
+fi
+
+show_host_list
+
+if [ "$ec2_key" ]; then
+    keys="$SSH_KEYDIR/*-${ec2_key}*"
+fi
+
+for key in $keys; do
+    keylist="$keylist -i $key"
+done
+
+ssh $opts $keylist ${user}@${host} "$@"
