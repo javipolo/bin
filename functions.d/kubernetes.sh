@@ -42,7 +42,7 @@ complete -W "$(cat $KUBERNETES_NAMESPACES_F)" kns
 # Shortcut to kubectl, allowing different versions of the client
 k(){
     case $(k_get_context_fast) in
-        payp) _kubectl=kubectl-1.9.2;;
+        exception) _kubectl=kubectl-1.9.2;;
         *) _kubectl=$KUBERNETES_KUBECTL_DEFAULT;;
     esac
     $_kubectl $@
@@ -111,30 +111,54 @@ decode_kubernetes_secret(){
 }
 alias ds=decode_kubernetes_secret
 
-# check if deploy has all replicas ready
-k_check_deploy(){
-    k get deploy $1 -o json | jq -r .status.unavailableReplicas | grep -qx null
+# check if all replicas are ready
+k_check_allready(){
+    type=$1
+    name=$2
+    case $type in
+        deploy|deployment)
+            field=unavailableReplicas
+            grep=null
+            k get $type $name -o json | jq -r .status.$field | grep -qx null
+            ;;
+        daemonset|ds)
+            field=numberMisscheduled
+            grep=0
+            ;;
+        *) echo "Type $type not supported yet"
+            exit 1
+            ;;
+    esac
+    k get $type $name -o json | jq -r .status.$field | grep -qx "$grep"
 }
 
-# wait until deploy has all replicas ready
-k_waitfor_deploy(){
-    while ! k_check_deploy $1; do
+# wait until all replicas are ready
+k_waitfor_allready(){
+    while ! k_check_allready $1 $2; do
         sleep 1
     done
 }
 
 k_get_labels(){
-    k get $1 $2 --show-labels|tail -n1|awk '{print $NF}'
+    type=$1
+    service=$2
+
+    case $type in
+        deploy*|sts|statefulset|ds|daemonset) field=.spec.template.metadata.labels ;;
+        *) field=.metadata.labels ;;
+    esac
+    k get $type $service -o yaml | yq $field | json2yaml| tr -d \ \' | tr : =|paste -s -d , -
 }
 
 # Performs a delete of all of the pods of a deployment in a "rolling restart" fashion, one by one
-k_rolling_delete_deployment(){
-    deployment=$1
-    labels=$(k_get_labels deploy $deployment)
+k_rolling_delete(){
+    type=$1
+    name=$2
+    labels=$(k_get_labels $type $name)
     if [ "$labels" ]; then
         for pod in $(k get po -o name -l $labels); do
             k delete $pod
-            k_waitfor_deploy $deployment
+            k_waitfor_allready $type $name
         done
     else
         echo "ERROR: No pods with labels $labels"
