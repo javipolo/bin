@@ -72,7 +72,7 @@ __javiline() {
         [ "${__kube_context:0,-2}" == "st" ] \
             && COLOR_KUBE="$COLOR_SUCCESS"  \
             || COLOR_KUBE="$COLOR_FAILURE"
-        [ "${__kube_context}" == "paystn" ] && COLOR_KUBE="$COLOR_WARNING"
+        [ "${__kube_context}" == "paypn" ] && COLOR_KUBE="$COLOR_WARNING"
         local kube="\\[${COLOR_KUBE}\\]\${__kube_context}\\[${RESET}\\]"
         # Add namespace if its not the default one
         [ "${__kube_namespace}" != "default" ] && kube="${kube}/\\[${COLOR_KUBE}\\]${__kube_namespace}\\[${RESET}\\]"
