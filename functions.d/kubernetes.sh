@@ -23,9 +23,12 @@ k_write_fasts(){ k_get_context > $KUBERNETES_CONTEXT_F; k_get_namespace > $KUBER
 k_write_namespaces(){ echo "$(kubectl get namespaces -o name | cut -d / -f 2) $EXTRA_NAMESPACES" > $KUBERNETES_NAMESPACES_F; }
 [ -f $KUBERNETES_NAMESPACES_F ] || k_write_namespaces
 
-# kch [context] # Change kubernetes cluster
+# kch <context> [namespace] # Change kubernetes cluster
 kch(){
-    kubectl config use-context $@
+    context=$1
+    namespace=$2
+    kubectl config use-context $context
+    [ "$2" ] && kns $namespace
     k_write_fasts
 }
 complete -W "$(kubectl config get-contexts -o name)" kch
