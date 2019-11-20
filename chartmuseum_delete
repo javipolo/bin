@@ -1,0 +1,25 @@
+#!/bin/bash
+
+die(){
+    echo $* 1>&2
+    exit 1
+}
+
+repo=$1
+package=$2
+versions=$3
+
+[ $# -lt 2 ] || die "Usage: $0 repo package [version]"
+
+repoURL=$(yq -r '.repositories[] | select(.name=="'$repo'") | .url' ~/.helm/repository/repositories.yaml)
+[ "$repourl" ] || die "Repository $repo not found"
+
+chartURL=$repoURL/api/charts/package
+
+if [ ! "$versions" ]; then
+    versions=$(curl -s $chartURL| jq -r .[].version) || die "Package not found in repo"
+fi
+
+for version in $versions; do
+    curl -sX DELETE ${chartURL}/$version
+done
