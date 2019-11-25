@@ -7,23 +7,55 @@
 #    - ec2ssh [-n 2] name_tag
 #    - ec2ssh IP
 
-opts="-o StrictHostKeyChecking=false"
 username=core
 keypath=~/.ssh/aws
-mode=awscli
+ssh_opts=""
+# Use awless or awscli (auto tries awless, and if not, awscli)
+mode=auto
+ssh_strict=false
 
-[ "$1" == "-m" ] && { mode=$2; shift; shift; }
-[ "$1" == "-p" ] && { profile=$2; shift; shift; }
-[ "$1" == "-r" ] && { region=$2; shift; shift; }
-[ "$1" == "-u" ] && { username=$2; shift; shift; }
-[ "$1" == "-n" ] && { hostnum=$(($2 - 1)); shift; shift; }
+usage(){
+    cat << EOF
+    Usage:
+       ec2ssh [-m mode] [-p profile] [-r region] [-u username] [-n hostnum] [-s ssh_stricthostkey] host [command]
+    Examples:
+       ec2ssh i-123124123123
+       ec2ssh -n 2 -s false name_tag
+       ec2ssh -u ubuntu i-123412332 ls /
+EOF
+    exit 1
+}
+
+mode_auto(){
+    command -v awless > /dev/null && echo -n awless && return
+    command -v aws > /dev/null && echo -n awscli && return
+    echo "ERROR. No awless or aws commands found in path. Aborting"
+    exit 1
+}
+
+while getopts ":m:p:r:u:n:s:" o; do
+  case "${o}" in
+    m) mode=${OPTARG} ;;
+    p) profile=${OPTARG} ;;
+    r) region=${OPTARG} ;;
+    u) username=${OPTARG} ;;
+    n) hostnum=$((${OPTARG}-1)) ;;
+    s) ssh_strict=${OPTARG} ;;
+    *) usage ;;
+  esac
+done
+shift $((OPTIND-1))
 host=$1; shift
+
+# Resolve auto mode
+[ "$mode" == "auto" ] && mode=$(mode_auto)
 
 # Generic functions
 get_running_instances(){ ${mode}_get_running_instances $@; }
 filter_by(){ ${mode}_filter_by $@; }
 get_by_id(){ ${mode}_get_by_id $@; }
 get_by_publicip(){ ${mode}_get_by_publicip $@; }
+get_by_privateip(){ ${mode}_get_by_privateip $@; }
 get_instance_id_by_name(){ ${mode}_get_instance_id_by_name $@; }
 
 # awscli stuff
@@ -52,6 +84,10 @@ awscli_get_by_id(){
 
 awscli_get_by_publicip(){
     awscli_filter_by PublicIpAddress $1
+}
+
+awscli_get_by_publicip(){
+    awscli_filter_by PrivateIpAddress $1
 }
 
 awscli_get_instance_id_by_name(){
@@ -88,6 +124,10 @@ awless_get_by_publicip(){
     awless_filter_by PublicIP $1
 }
 
+awless_get_by_privateip(){
+    awless_filter_by PrivateIP $1
+}
+
 awless_get_instance_id_by_name(){
     name=$1
     num=${2:-0}
@@ -104,6 +144,7 @@ if echo $host | grep -e "^i-" -q; then
 # Or an IP address
 elif echo $host | grep -P "^([0-9]+\.){3}[0-9]+" -q; then
     read -r i_ip i_key i_name i_id <<<$(get_by_publicip $host)
+    [ "$i_ip" ] || read -r i_ip i_key i_name i_id <<<$(get_by_privateip $host)
 
 # or a DNS name that resolves
 elif [ "$(dig +short $host)" ]; then
@@ -116,5 +157,12 @@ else
     read -r i_ip i_key i_name i_id <<<$(get_by_id $desired_num_instance_id)
 fi
 
-echo -e "$i_id $i_name $i_ip\n"
-ssh $opts -i $keypath/$i_key $username@$i_ip "$@"
+# Disable strict host key checking if needed
+[ "$ssh_strict" == "false" ] && ssh_opts="$ssh_opts -o StrictHostKeyChecking=false"
+
+if [ "$i_ip" ]; then
+    echo -e "$i_id $i_name $i_ip\n"
+    ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
+else
+    echo "ERROR. Host '$host' not found"
+fi
