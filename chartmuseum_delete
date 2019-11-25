@@ -7,9 +7,9 @@ die(){
 
 repo=$1
 package=$2
-versions=$3
+versions=$@
 
-[ $# -lt 2 ] || die "Usage: $0 repo package [version]"
+[ $# -lt 2 ] || die "Usage: $0 repo package [versions]"
 
 repoURL=$(yq -r '.repositories[] | select(.name=="'$repo'") | .url' ~/.helm/repository/repositories.yaml)
 [ "$repourl" ] || die "Repository $repo not found"
