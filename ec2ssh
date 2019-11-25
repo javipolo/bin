@@ -10,44 +10,110 @@
 opts="-o StrictHostKeyChecking=false"
 username=core
 keypath=~/.ssh/aws
+mode=awscli
 
-[ "$1" == "-p" ] && { profile="-p $2"; shift; shift; }
-[ "$1" == "-r" ] && { region="-r $2"; shift; shift; }
+[ "$1" == "-m" ] && { mode=$2; shift; shift; }
+[ "$1" == "-p" ] && { profile=$2; shift; shift; }
+[ "$1" == "-r" ] && { region=$2; shift; shift; }
 [ "$1" == "-u" ] && { username=$2; shift; shift; }
 [ "$1" == "-n" ] && { hostnum=$(($2 - 1)); shift; shift; }
 host=$1; shift
-awless="awless $profile $region --format=json"
 
-get_running_instances(){
+# Generic functions
+get_running_instances(){ ${mode}_get_running_instances $@; }
+filter_by(){ ${mode}_filter_by $@; }
+get_by_id(){ ${mode}_get_by_id $@; }
+get_by_publicip(){ ${mode}_get_by_publicip $@; }
+get_instance_id_by_name(){ ${mode}_get_instance_id_by_name $@; }
+
+# awscli stuff
+awscli_args(){
+    args=""
+    [ "$profile" ] && args="$args --profile $profile"
+    [ "$region" ] && args="$args --region $region"
+    echo -n "$args"
+}
+
+awscli="aws $(awscli_args)"
+
+awscli_get_running_instances(){
+    $awscli ec2 describe-instances | jq -r '.Reservations[].Instances[] | select(.State.Name=="running")'
+}
+
+awscli_filter_by(){
+    field=$1
+    value=$2
+    echo "$instances" | jq -r 'select(.'$field'=="'$value'") | .PublicIpAddress, .KeyName, (.Tags[] | select(.Key=="Name") | .Value), .InstanceId' | xargs
+}
+
+awscli_get_by_id(){
+    awscli_filter_by InstanceId $1
+}
+
+awscli_get_by_publicip(){
+    awscli_filter_by PublicIpAddress $1
+}
+
+awscli_get_instance_id_by_name(){
+    name=$1
+    num=${2:-0}
+    echo "$instances" | jq 'select((.Tags[]|select(.Key=="Name")|.Value) | contains("'$name'"))' 2>/dev/null | jq -s . | jq -r .[$num].InstanceId
+}
+
+# awless stuff
+awless_args(){
+    args="--format=json"
+    [ "$profile" ] && args="$args -p $profile"
+    [ "$region" ] && args="$args -r $region"
+    echo -n "$args"
+}
+
+awless="awless $(awless_args)"
+
+awless_get_running_instances(){
     $awless list instances | jq '.[] | select(.State=="running")'
 }
 
-instances=$(get_running_instances)
-
-filter_ip_key(){
+awless_filter_by(){
     field=$1
     value=$2
     echo "$instances" | jq -r 'select(.'$field'=="'$value'") | .PublicIP, .KeyPair, .Name, .ID' | xargs
 }
 
+awless_get_by_id(){
+    awless_filter_by ID $1
+}
+
+awless_get_by_publicip(){
+    awless_filter_by PublicIP $1
+}
+
+awless_get_instance_id_by_name(){
+    name=$1
+    num=${2:-0}
+    echo "$instances" | jq 'select(.[] | contains("'$name'"))' 2>/dev/null | jq -s . | jq -r .[$num].ID
+}
+
+# Common code
+instances=$(get_running_instances)
+
 # This is a instance ID
 if echo $host | grep -e "^i-" -q; then
-    read -r i_ip i_key i_name i_id <<<$(filter_ip_key ID $host)
+    read -r i_ip i_key i_name i_id <<<$(get_by_id $host)
 
 # Or an IP address
 elif echo $host | grep -P "^([0-9]+\.){3}[0-9]+" -q; then
-    read -r i_ip i_key i_name i_id <<<$(filter_ip_key PublicIP $host)
+    read -r i_ip i_key i_name i_id <<<$(get_by_publicip $host)
 
 # or a DNS name that resolves
 elif [ "$(dig +short $host)" ]; then
     hostIP=$(dig +short $host)
-    read -r i_ip i_key i_name i_id <<<$(filter_ip_key PublicIP $hostIP)
+    read -r i_ip i_key i_name i_id <<<$(get_by_publicip $hostIP)
 
 # Everything else should be an instance name
 else
-    filtered_instance_list=$(echo "$instances" | jq 'select(.[] | contains("'$host'"))' 2>/dev/null | jq -s .)
-    desired_num_instance_id=$(echo "$filtered_instance_list" | jq -r .[$hostnum].ID)
-    read -r i_ip i_key i_name i_id <<<$(filter_ip_key ID $desired_num_instance_id)
+    desired_num_instance_id=$(get_instance_id_by_name $host $hostnum)
+    read -r i_ip i_key i_name i_id <<<$(get_by_id $desired_num_instance_id)
 fi
 
 echo -e "$i_id $i_name $i_ip\n"
