@@ -57,6 +57,7 @@ get_by_id(){ ${mode}_get_by_id $@; }
 get_by_publicip(){ ${mode}_get_by_publicip $@; }
 get_by_privateip(){ ${mode}_get_by_privateip $@; }
 get_instance_id_by_name(){ ${mode}_get_instance_id_by_name $@; }
+list_instances_by_name(){ echo "Instance list"; ${mode}_list_instances_by_name $@ | cat -n; echo ""; }
 
 # awscli stuff
 awscli_args(){
@@ -88,6 +89,11 @@ awscli_get_by_publicip(){
 
 awscli_get_by_publicip(){
     awscli_filter_by PrivateIpAddress $1
+}
+
+awscli_list_instances_by_name(){
+    name=$1
+    echo "$instances" | jq -r 'select((.Tags[]|select(.Key=="Name")|.Value) | contains("'$name'")) | "\(.InstanceId) \((.Tags[] | select(.Key=="Name") | .Value)) \(.PublicIpAddress)"' 2>/dev/null
 }
 
 awscli_get_instance_id_by_name(){
@@ -128,6 +134,11 @@ awless_get_by_privateip(){
     awless_filter_by PrivateIP $1
 }
 
+awless_list_instances_by_name(){
+    name=$1
+    echo "$instances" | jq -r 'select(.[] | contains("'$name'")) | "\(.ID) \(.Name) \(.PublicIP)"' 2>/dev/null
+}
+
 awless_get_instance_id_by_name(){
     name=$1
     num=${2:-0}
@@ -153,6 +164,7 @@ elif [ "$(dig +short $host)" ]; then
 
 # Everything else should be an instance name
 else
+    list_instances_by_name $host
     desired_num_instance_id=$(get_instance_id_by_name $host $hostnum)
     read -r i_ip i_key i_name i_id <<<$(get_by_id $desired_num_instance_id)
 fi
@@ -161,7 +173,7 @@ fi
 [ "$ssh_strict" == "false" ] && ssh_opts="$ssh_opts -o StrictHostKeyChecking=false"
 
 if [ "$i_ip" ]; then
-    echo -e "$i_id $i_name $i_ip\n"
+    echo -e "ec2ssh to $i_id $i_name $i_ip\n"
     ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
 else
     echo "ERROR. Host '$host' not found"
