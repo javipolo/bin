@@ -33,8 +33,9 @@ mode_auto(){
     exit 1
 }
 
-while getopts ":m:p:r:u:n:s:" o; do
+while getopts ":lm:p:r:u:n:s:" o; do
   case "${o}" in
+    l) listonly=true ;;
     m) mode=${OPTARG} ;;
     p) profile=${OPTARG} ;;
     r) region=${OPTARG} ;;
@@ -165,6 +166,7 @@ elif [ "$(dig +short $host)" ]; then
 # Everything else should be an instance name
 else
     list_instances_by_name $host
+    [ "$listonly" == "true" ] && exit 0
     desired_num_instance_id=$(get_instance_id_by_name $host $hostnum)
     read -r i_ip i_key i_name i_id <<<$(get_by_id $desired_num_instance_id)
 fi
@@ -174,6 +176,7 @@ fi
 
 if [ "$i_ip" ]; then
     echo -e "ec2ssh to $i_id $i_name $i_ip\n"
+    [ "$listonly" == "true" ] && exit 0
     ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
 else
     echo "ERROR. Host '$host' not found"
