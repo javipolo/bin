@@ -1,0 +1,37 @@
+#!/bin/bash
+
+default_mode=sum
+default_regions="us-east-1 us-east-2"
+
+[ "$1" = "--end" ] && { mode="end" && shift; }
+[ "$1" = "--sum" ] && { mode="sum" && shift; }
+
+mode_end(){
+    local regions=$@
+    for r in $regions; do
+        echo ""
+        m="End of reserved instances for $r"
+        echo $m
+        echo $m | tr 0-z\-\  =
+        aws ec2 describe-reserved-instances --region $r | jq -r '.ReservedInstances[] | select(.State=="active") | "\(.InstanceType) \(.InstanceCount) \(.End)"'| cut -d T -f 1 | column -t
+    done
+}
+
+mode_sum(){
+    local regions=$@
+    for r in $regions; do
+        echo ""
+        m="Sum of reserved instances for $r"
+        echo $m
+        echo $m | tr 0-z\-\  =
+        aws ec2 describe-reserved-instances --region $r | jq -r '.ReservedInstances[] | select(.State=="active") | "\(.InstanceType) \(.InstanceCount)"'| awk '{a[$1] += $2} END{for (i in a) print i,a[i]}'| sort -k2nr|column -t
+    done
+}
+
+regions=${@:-$default_regions}
+case $mode in
+    end) mode_end $regions ;;
+    sum) mode_sum $regions ;;
+    *) mode_${default_mode} $regions ;;
+esac
+
