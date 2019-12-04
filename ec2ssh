@@ -11,13 +11,22 @@ username=core
 keypath=~/.ssh/aws
 ssh_opts=""
 # Use awless or awscli (auto tries awless, and if not, awscli)
-mode=auto
+backend=auto
 ssh_strict=false
 
 usage(){
     cat << EOF
     Usage:
-       ec2ssh [-m mode] [-p profile] [-r region] [-u username] [-n hostnum] [-s ssh_stricthostkey] host [command]
+       ec2ssh [options] host [command]
+
+    Options:
+        -l                  List only, but do not run ssh
+        -b backend          Use backend to query aws [awscli or awless] (Default: $backend)
+        -r region           AWS region
+        -u username         username (Default: $username)
+        -h hostnum          When using a pattern, connect to this number of host on the list
+        -s true/false       If true, use ssh strict hostkey mode (Default: $ssh_strict)
+
     Examples:
        ec2ssh i-123124123123
        ec2ssh -n 2 -s false name_tag
@@ -26,7 +35,7 @@ EOF
     exit 1
 }
 
-mode_auto(){
+backend_auto(){
     command -v awless > /dev/null && echo -n awless && return
     command -v aws > /dev/null && echo -n awscli && return
     echo "ERROR. No awless or aws commands found in path. Aborting"
@@ -36,7 +45,7 @@ mode_auto(){
 while getopts ":lm:p:r:u:n:s:" o; do
   case "${o}" in
     l) listonly=true ;;
-    m) mode=${OPTARG} ;;
+    b) backend=${OPTARG} ;;
     p) profile=${OPTARG} ;;
     r) region=${OPTARG} ;;
     u) username=${OPTARG} ;;
@@ -48,17 +57,17 @@ done
 shift $((OPTIND-1))
 host=$1; shift
 
-# Resolve auto mode
-[ "$mode" == "auto" ] && mode=$(mode_auto)
+# Resolve auto backend
+[ "$backend" == "auto" ] && backend=$(backend_auto)
 
 # Generic functions
-get_running_instances(){ ${mode}_get_running_instances $@; }
-filter_by(){ ${mode}_filter_by $@; }
-get_by_id(){ ${mode}_get_by_id $@; }
-get_by_publicip(){ ${mode}_get_by_publicip $@; }
-get_by_privateip(){ ${mode}_get_by_privateip $@; }
-get_instance_id_by_name(){ ${mode}_get_instance_id_by_name $@; }
-list_instances_by_name(){ echo "Instance list"; ${mode}_list_instances_by_name $@ | cat -n; echo ""; }
+get_running_instances(){ ${backend}_get_running_instances $@; }
+filter_by(){ ${backend}_filter_by $@; }
+get_by_id(){ ${backend}_get_by_id $@; }
+get_by_publicip(){ ${backend}_get_by_publicip $@; }
+get_by_privateip(){ ${backend}_get_by_privateip $@; }
+get_instance_id_by_name(){ ${backend}_get_instance_id_by_name $@; }
+list_instances_by_name(){ echo "Instance list"; ${backend}_list_instances_by_name $@ | cat -n; echo ""; }
 
 # awscli stuff
 awscli_args(){
