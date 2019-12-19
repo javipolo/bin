@@ -1,0 +1,23 @@
+#!/bin/bash
+# get-kube-aws [version] [destination-dir]
+
+version=${1:-latest}
+arch=linux-amd64
+destdir=${2:-~/bin/local}
+
+tmpdir=$(mktemp -d)
+
+trap cleanup EXIT
+cleanup(){
+    rm -fr $tmpdir
+}
+
+if [ "$version" == "latest" ]; then
+  version=$(curl -sI https://github.com/kubernetes-incubator/kube-aws/releases/latest| awk -F / '/^Location/{print $NF}' |tr -d v\\r)
+fi
+
+url=https://github.com/kubernetes-incubator/kube-aws/releases/download/v${version}/kube-aws-${arch}.tar.gz
+echo "Downloading kube-aws v${version}"
+curl -sL $url > $tmpdir/kube-aws.tgz
+tar xf $tmpdir/kube-aws.tgz -C $tmpdir
+mv $tmpdir/${arch}/kube-aws $destdir/kube-aws-$version && echo "OK" || echo "ERROR"
