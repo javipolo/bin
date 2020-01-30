@@ -25,8 +25,8 @@ git push
 
 echo ""
 echo "Cleanup remote and local"
-# Cleanup
-git push origin --delete $head_branch
 # Remove local merged branches
 git branch --merged|grep -v '*'| tr -d ' ' | grep -xvE 'master|develop|production|staging' | xargs -r git br -d
+# Remove remote branch
+git push origin --delete $head_branch
 
