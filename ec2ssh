@@ -26,6 +26,7 @@ usage(){
         -u username         username (Default: $username)
         -h hostnum          When using a pattern, connect to this number of host on the list
         -s true/false       If true, use ssh strict hostkey mode (Default: $ssh_strict)
+        -d                  debug. Just echo the ssh command
 
     Examples:
        ec2ssh i-123124123123
@@ -42,9 +43,10 @@ backend_auto(){
     exit 1
 }
 
-while getopts ":lm:p:r:u:n:s:" o; do
+while getopts ":l:dm:p:r:u:n:s:" o; do
   case "${o}" in
     l) listonly=true ;;
+    d) debug="echo" ;;
     b) backend=${OPTARG} ;;
     p) profile=${OPTARG} ;;
     r) region=${OPTARG} ;;
@@ -184,9 +186,9 @@ fi
 [ "$ssh_strict" == "false" ] && ssh_opts="$ssh_opts -o StrictHostKeyChecking=false"
 
 if [ "$i_ip" ]; then
-    echo -e "ec2ssh to $i_id $i_name $i_ip\n"
+    echo -e "ec2ssh to $i_id $i_name $i_ip\n" >&2
     [ "$listonly" == "true" ] && exit 0
-    ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
+    $debug ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
 else
     echo "ERROR. Host '$host' not found"
 fi
