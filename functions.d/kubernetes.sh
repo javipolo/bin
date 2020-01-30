@@ -85,6 +85,15 @@ _k(){
 }
 complete -F _k k
 
+# configmap to files
+k_configmap_to_files(){
+    command="k get cm -o json $@"
+    for key in $( $command | jq -r '.data | keys[]'); do
+        echo $key
+        $command | jq -r '.data."'${key}'"' > $key
+    done
+}
+
 # decode kubernetes secret
 decode_kubernetes_secret(){
     if [ "$1" == "-j" ]; then
