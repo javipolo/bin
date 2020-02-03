@@ -43,7 +43,7 @@ backend_auto(){
     exit 1
 }
 
-while getopts ":l:dm:p:r:u:n:s:" o; do
+while getopts "ld:p:r:u:n:s:" o; do
   case "${o}" in
     l) listonly=true ;;
     d) debug="echo" ;;
