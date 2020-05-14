@@ -1,0 +1,32 @@
+#!/bin/bash
+
+conf_file=~/etc/aws_routes.conf
+
+destinations="work"
+route_work="dev tun0 scope link "
+profiles_work="
+    work us-west-1
+    work us-east-2
+"
+
+[ -f $conf_file ] && source $conf_file
+
+add_route(){
+    ip=$1
+    route=$2
+    full_route="$ip $route"
+    ip route | grep -qx "$full_route" || sudo ip route add $full_route
+}
+
+for destination in $destinations; do
+    dr=route_${destination}
+    dp=profiles_${destination}
+    route="${!dr}"
+    profiles=${!dp}
+    echo "$profiles" | xargs -n2 | while read profile region; do
+        echo "Adding route to $destination - $profile $region"
+        aws --region $region --profile $profile ec2 describe-instances| jq -r '.Reservations[].Instances[].PublicIpAddress' | while read ip; do
+            add_route $ip "$route"
+        done
+    done
+done
