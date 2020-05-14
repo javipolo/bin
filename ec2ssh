@@ -13,6 +13,9 @@ ssh_opts=""
 # Use awless or awscli (auto tries awless, and if not, awscli)
 backend=auto
 ssh_strict=false
+# Route through VPN
+add_route=false
+route='$ip dev tun0 scope link'
 
 usage(){
     cat << EOF
@@ -34,6 +37,12 @@ usage(){
        ec2ssh -u ubuntu i-123412332 ls /
 EOF
     exit 1
+}
+
+add_route(){
+    export ip=$1
+    local ip_route="$(echo ${route} | envsubst) "
+    ip route | grep -qx "$ip_route" || { echo "Adding route to $ip" >&2; sudo ip route add $ip_route; }
 }
 
 backend_auto(){
@@ -175,9 +184,10 @@ elif [ "$(dig +short $host)" ]; then
     read -r i_ip i_key i_name i_id <<<$(get_by_publicip $hostIP)
 
 # Everything else should be an instance name
-else
+elif [ "$listonly" == "true" ]; then
     list_instances_by_name $host
-    [ "$listonly" == "true" ] && exit 0
+    exit 0
+else
     desired_num_instance_id=$(get_instance_id_by_name $host $hostnum)
     read -r i_ip i_key i_name i_id <<<$(get_by_id $desired_num_instance_id)
 fi
@@ -188,6 +198,7 @@ fi
 if [ "$i_ip" ]; then
     echo -e "ec2ssh to $i_id $i_name $i_ip\n" >&2
     [ "$listonly" == "true" ] && exit 0
+    [ "$add_route" == "true" ] && add_route $i_ip
     $debug ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
 else
     echo "ERROR. Host '$host' not found"
