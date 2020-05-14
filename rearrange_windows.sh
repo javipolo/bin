@@ -75,6 +75,6 @@ if [ $num_displays -gt 1 ]; then
         rearrange $name
     done
     # Move spotify to desktop 11 (11-1)
-    move_to_desktop spotify 10
+    move_to_desktop spotify 3
 fi
 
