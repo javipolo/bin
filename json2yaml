@@ -2,4 +2,8 @@
 
 import sys, yaml, json
 
-yaml.safe_dump(json.load(sys.stdin), sys.stdout, default_flow_style=False)
+json_data = sys.stdin
+try:
+    yaml.safe_dump(json.load(json_data), sys.stdout, default_flow_style=False)
+except ValueError:
+    pass
