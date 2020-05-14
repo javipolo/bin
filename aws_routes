@@ -2,11 +2,11 @@
 
 conf_file=~/etc/aws_routes.conf
 
-destinations="work"
-route_work="dev tun0 scope link "
-profiles_work="
-    work us-west-1
-    work us-east-2
+destinations="kodify"
+route_kodify="dev tun0 scope link "
+profiles_kodify="
+    paysites us-east-1
+    paysites us-east-2
 "
 
 [ -f $conf_file ] && source $conf_file

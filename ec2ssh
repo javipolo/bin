@@ -14,7 +14,7 @@ ssh_opts=""
 backend=auto
 ssh_strict=false
 # Route through VPN
-add_route=false
+add_route=true
 route='$ip dev tun0 scope link'
 
 usage(){
