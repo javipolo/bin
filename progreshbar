@@ -1,0 +1,43 @@
+#!/bin/bash
+
+usage(){
+    echo '
+    Usage:
+        $0 [-p] iteration_number total [item_name]
+
+    Example:
+    list=$(find .)
+    list_count=$(echo "$list"|wc -l)
+    i=1
+    for l in $list; do
+      progreshbar -p $i $list_count $l
+      ((i++))
+    done
+    '
+    exit 1
+}
+
+percentage=false
+[ "$1" == "-p" ] && { percentage=true; shift 1; }
+
+iteration=$1
+total=$2
+item=$3
+progress_bar_num=$iteration
+progress_bar_max=$total
+
+[ "$iteration" ] || usage
+[ "$total" ]     || usage
+
+if [ "$percentage" == "true" ]; then
+    progress_bar_num=$(((100*$iteration)/$total))
+    progress_bar_max=100
+    progress_bar_percentage="${progress_bar_num}%"
+fi
+
+progress_bar_rest=$(($progress_bar_max-$progress_bar_num))
+progress_bar_prefix=$(printf %${progress_bar_num}s)
+progress_bar_suffix=$(printf %${progress_bar_rest}s)
+echo -n $'\r\033[K'
+echo -n "[ ${progress_bar_prefix}=>${progress_bar_suffix}] ${progress_bar_percentage} $iteration / $total $item"
+[ $iteration == $total ] && echo ""
