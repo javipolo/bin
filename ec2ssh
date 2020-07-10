@@ -108,7 +108,7 @@ awscli_get_by_publicip(){
     awscli_filter_by PublicIpAddress $1
 }
 
-awscli_get_by_publicip(){
+awscli_get_by_privateip(){
     awscli_filter_by PrivateIpAddress $1
 }
 
