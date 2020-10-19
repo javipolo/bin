@@ -7,7 +7,7 @@
 #    - ec2ssh [-n 2] name_tag
 #    - ec2ssh IP
 
-username=core
+username=admin
 keypath=~/.ssh/aws
 ssh_opts=""
 # Use awless or awscli (auto tries awless, and if not, awscli)

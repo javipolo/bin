@@ -63,7 +63,7 @@ h(){
 # kshell <pod> [command] # Exec command on pod (default: bash)
 kshell(){
     if [ $# -gt 0 ]; then
-        kubectl exec -it $1 ${2:-bash}
+        kubectl exec -it $1 -- ${2:-bash}
     fi
 }
 complete -F _k kshell
