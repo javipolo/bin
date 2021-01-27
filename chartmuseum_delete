@@ -5,20 +5,21 @@ die(){
     exit 1
 }
 
+[ $# -lt 2 ] && die "Usage: $0 repo package [versions]"
+
 repo=$1
 package=$2
+shift; shift;
 versions=$@
 
-[ $# -lt 2 ] || die "Usage: $0 repo package [versions]"
+echo "versions $versions"
 
 repoURL=$(yq -r '.repositories[] | select(.name=="'$repo'") | .url' ~/.helm/repository/repositories.yaml)
-[ "$repourl" ] || die "Repository $repo not found"
+[ "$repoURL" ] || die "Repository $repo not found"
 
-chartURL=$repoURL/api/charts/package
+chartURL=$repoURL/api/charts/$package
 
-if [ ! "$versions" ]; then
-    versions=$(curl -s $chartURL| jq -r .[].version) || die "Package not found in repo"
-fi
+[ "$versions" ] || versions=$(curl -s $chartURL| jq -r .[].version) || die "No versions found for $package"
 
 for version in $versions; do
     curl -sX DELETE ${chartURL}/$version
