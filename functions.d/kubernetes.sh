@@ -9,12 +9,6 @@ KUBERNETES_HELM_DEFAULT=helm-3.2.1
 
 source <(kubectl completion bash)
 
-# kls # List all defined contexts
-alias kls="kubectl config get-contexts -o name"
-
-# krunonce <arguments> # Run once an image on the cluster, and delete it when it finishes
-alias krunonce="kubectl run --rm --restart=Never -it"
-
 # Cache stuff in files to faster use in other places (command line prompt, ...)
 k_get_context(){ grep ^current-context ${KUBECONFIG:-~/.kube/config}|cut -d ' ' -f 2| tr -d \\n; }
 k_get_context_fast(){ cat $KUBERNETES_CONTEXT_F; }
@@ -218,5 +212,5 @@ kdebug(){
         shift; shift;
     fi
 
-    krunonce $extra_args --image $image $name
+    kubectl run --restart=Never -it $extra_args --image $image $name
 }
