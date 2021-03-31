@@ -30,6 +30,7 @@ usage(){
         -h hostnum          When using a pattern, connect to this number of host on the list
         -s true/false       If true, use ssh strict hostkey mode (Default: $ssh_strict)
         -d                  debug. Just echo the ssh command
+        -q                  quiet. Do not print ec2ssh messages
 
     Examples:
        ec2ssh i-123124123123
@@ -52,7 +53,7 @@ backend_auto(){
     exit 1
 }
 
-while getopts "ld:p:r:u:n:s:" o; do
+while getopts "lqd:p:r:u:n:s:" o; do
   case "${o}" in
     l) listonly=true ;;
     d) debug="echo" ;;
@@ -62,6 +63,7 @@ while getopts "ld:p:r:u:n:s:" o; do
     u) username=${OPTARG} ;;
     n) hostnum=$((${OPTARG}-1)) ;;
     s) ssh_strict=${OPTARG} ;;
+    q) quiet=true ;;
     *) usage ;;
   esac
 done
@@ -196,7 +198,7 @@ fi
 [ "$ssh_strict" == "false" ] && ssh_opts="$ssh_opts -o StrictHostKeyChecking=false"
 
 if [ "$i_ip" ]; then
-    echo -e "ec2ssh to $i_id $i_name $i_ip\n" >&2
+    [ "$quiet" != "true" ] && echo -e "ec2ssh to $i_id $i_name $i_ip\n" >&2
     [ "$listonly" == "true" ] && exit 0
     [ "$add_route" == "true" ] && add_route $i_ip
     $debug ssh $ssh_opts -i $keypath/$i_key $username@$i_ip "$@"
