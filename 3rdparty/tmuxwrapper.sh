@@ -1,6 +1,7 @@
 # Make short hostname only if its not an IP address
 __tm_get_hostname(){
-    local HOST="$(echo $* | rev | cut -d ' ' -f 1 | rev)"
+    local clean=$(echo $*|xargs -n1 | grep -v ^- | paste -sd' ')
+    local HOST="$(echo $clean | rev | cut -d ' ' -f 1 | rev)"
     if echo $HOST | grep -P "^([0-9]+\.){3}[0-9]+" -q; then
         echo $HOST
     else
