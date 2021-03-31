@@ -1,21 +1,10 @@
-LAPTOP=eDP-1
-MONITOR=DP-1
-MONITOR=$(xrandr|grep ^DP|grep ' connected'| cut -d ' ' -f 1)
-LMODE=1920x1080
-MMODE=3840x2160
-MODE=1920x1080
+LAPTOP=$(xrandr|grep ' primary'| grep ' connected'|cut -d ' ' -f 1)
+MONITOR=$(xrandr|grep -v ' primary'| grep ' connected'|cut -d ' ' -f 1)
+MMODE=1920x1080
+LMODE=1920x1200
 
-case $(iwgetid --raw) in
-    "Gey Panda Crew")
-        MMODE=1920x1080
-        ;;
-esac
-
-
-# Run xrandr if we are not in desired mode
-#if [ "$(xrandr|grep \*|grep ${MMODE}|wc -l)" != "2" ]; then
-if [ "$(xrandr|grep ' connected ')" != "2" ]; then
-    xrandr --output $LAPTOP --mode ${LMODE} --output $MONITOR --left-of $LAPTOP --mode ${MMODE}
-else
-    xrandr --output $LAPTOP --mode ${MODE}
+if [ "$MONITOR" ]; then
+    extra="--output $MONITOR --left-of $LAPTOP --mode ${MMODE}"
 fi
+
+xrandr --output $LAPTOP --mode ${LMODE} $extra
