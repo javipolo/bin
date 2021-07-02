@@ -1,0 +1,19 @@
+#!/bin/bash
+
+[ "$1" == "-d" ] && { set_default=true; shift; }
+
+version=$1
+outdir=~/bin/local
+
+[ "$version" ] || version=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+[ "${version::1}" != "v" ] && version=v${version}
+
+echo "Downloading kubectl version $version"
+curl -sL https://dl.k8s.io/release/${version}/bin/linux/amd64/kubectl -o ${outdir}/kubectl-${version}
+
+chmod +x ${outdir}/kubectl-${version}
+
+if [ "$set_default" == "true" ]; then
+    echo "Setting as default kubectl"
+    cp -a ${outdir}/kubectl-${version} ${outdir}/kubectl
+fi

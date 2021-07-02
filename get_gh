@@ -1,0 +1,12 @@
+#!/bin/bash
+
+[ "$1" == "-d" ] && { debug=echo; shift; }
+
+version=$1
+outdir=~/bin/local
+
+[ "$version" ] || version=$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)
+[ "${version::1}" != "v" ] && version=v${version}
+
+$debug curl -L https://github.com/kubernetes/kops/releases/download/${version}/kops-linux-amd64 -o ${outdir}/kops-${version}
+chmod +x ${outdir}/kops-${version}
