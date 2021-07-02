@@ -7,7 +7,7 @@
 # - xrandr  (used to find out if we are using multiple screens and to get
 #            current resolution)
 
-names="Telegram chrome slack skype"
+names="Telegram chrome slack skype Spotify"
 
 get_wids(){
     xdotool search --maxdepth 2 --onlyvisible --name "$1" || echo NULL
