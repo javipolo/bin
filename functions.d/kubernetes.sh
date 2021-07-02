@@ -4,8 +4,7 @@ EXTRA_NAMESPACES="staging ci"
 KUBERNETES_NAMESPACE_F=$KUBEDIR/.namespace
 KUBERNETES_NAMESPACES_F=$KUBEDIR/.namespaces
 KUBERNETES_CONTEXT_F=$KUBEDIR/.context
-KUBERNETES_KUBECTL_DEFAULT=kubectl-1.14.1
-KUBERNETES_HELM_DEFAULT=helm-3.2.1
+KUBERNETES_KUBECTL_DEFAULT=kubectl
 
 source <(kubectl completion bash)
 
@@ -44,14 +43,6 @@ k(){
         *) _kubectl=$KUBERNETES_KUBECTL_DEFAULT;;
     esac
     $_kubectl $@
-}
-
-# Shortcut to helm, allowing different versions of the client
-h(){
-    case $(k_get_context_fast) in
-        *) _helm=$KUBERNETES_HELM_DEFAULT;;
-    esac
-    $_helm $@
 }
 
 # kshell <pod> [command] # Exec command on pod (default: bash)
