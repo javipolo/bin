@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Fast dipplanner calculator
+
+usage(){
+    cat << EOF
+    Usage:
+       dip [options] <depth> <time>
+
+        depth is in meters
+        time is in seconds
+
+    Options:
+        -b bottomgas        Use bottomgas% as bottom gas (Default: optimal gas)
+        -d decogas          Use decogas% as gas deco
+        -p maxppo           Use max ppo for bottom gas optimal gas calculator
+
+    Examples:
+        dip 30 30
+        dip -b 32 30 30
+        dip -p 1.4 40 35
+EOF
+    exit 1
+}
+
+# round 3.141592 4
+round(){
+    echo "scale=$2;(((10^$2)*$1)+0.5)/(10^$2)" | bc
+}
+
+maxppo="1.4"
+tanktpl='${gasname};0.${bottomgas};0.0;${capacity};${pressure};50b'
+segtpl='${depth};${time};${gasname};0.0'
+
+while getopts "b:d:p:" o; do
+  case "${o}" in
+    b) bottomgas=${OPTARG} ;;
+    d) decogas=${OPTARG} ;;
+    p) maxppo=${OPTARG} ;;
+    *) usage ;;
+  esac
+done
+shift $((OPTIND-1))
+depth=$1; shift
+time=$1; shift
+
+
