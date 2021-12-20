@@ -3,7 +3,7 @@
 usage(){
     echo '
     Usage:
-        $0 [-p] iteration_number total [item_name]
+        $0 [-p] [--no-trim] iteration_number total [item_name]
 
     Example:
     list=$(find .)
@@ -17,8 +17,20 @@ usage(){
     exit 1
 }
 
+template='[ ${progress_bar_prefix}=>${progress_bar_suffix}] ${progress_bar_percentage} $iteration / $total $item'
+# Export templated values
+export progress_bar_prefix
+export progress_bar_suffix
+export progress_bar_percentage
+export iteration
+export total
+export item
+
 percentage=false
 [ "$1" == "-p" ] && { percentage=true; shift 1; }
+
+trim=true
+[ "$1" == "--no-trim" ] && { trim=false; shift 1; }
 
 iteration=$1
 total=$2
@@ -32,12 +44,18 @@ progress_bar_max=$total
 if [ "$percentage" == "true" ]; then
     progress_bar_num=$(((100*$iteration)/$total))
     progress_bar_max=100
-    progress_bar_percentage="${progress_bar_num}%"
+    export progress_bar_percentage="${progress_bar_num}%"
 fi
 
 progress_bar_rest=$(($progress_bar_max-$progress_bar_num))
 progress_bar_prefix=$(printf %${progress_bar_num}s)
 progress_bar_suffix=$(printf %${progress_bar_rest}s)
+
+if [ "$trim" == "true" ]; then
+    num=$(( $(tput cols) - $(echo -n "$template" | envsubst | wc -c) - 1 ))
+    item=${item:0:$num}
+fi
+
 echo -n $'\r\033[K'
-echo -n "[ ${progress_bar_prefix}=>${progress_bar_suffix}] ${progress_bar_percentage} $iteration / $total $item"
+echo -n "$template" | envsubst
 [ $iteration == $total ] && echo ""
