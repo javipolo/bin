@@ -3,10 +3,11 @@
 [ "$1" == "-d" ] && { debug=echo; shift; }
 
 version=$1
-outdir=~/bin/local
+outdir=/tmp
+repo=cli/cli
 
-[ "$version" ] || version=$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)
+[ "$version" ] || version=$(curl -s https://api.github.com/repos/${repo}/releases/latest | grep tag_name | cut -d '"' -f 4)
 [ "${version::1}" != "v" ] && version=v${version}
 
-$debug curl -L https://github.com/kubernetes/kops/releases/download/${version}/kops-linux-amd64 -o ${outdir}/kops-${version}
-chmod +x ${outdir}/kops-${version}
+$debug curl -L https://github.com/${repo}/releases/download/${version}/gh_2.1.0_linux_386.deb -o ${outdir}/gh-${version}.deb
+$debug sudo dpkg -i ${outdir}/gh-${version}.deb
