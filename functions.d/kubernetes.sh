@@ -11,7 +11,7 @@ source <(kubectl completion bash)
 # Cache stuff in files to faster use in other places (command line prompt, ...)
 k_get_context(){ grep ^current-context ${KUBECONFIG:-~/.kube/config}|cut -d ' ' -f 2| tr -d \\n; }
 k_get_context_fast(){ cat $KUBERNETES_CONTEXT_F; }
-k_get_namespace(){ kubectl config get-contexts|grep '^*'| awk '{print $NF}'; }
+k_get_namespace(){ kubectl config get-contexts | awk '/^*/{print $NF}'; }
 k_get_namespace_fast(){ cat $KUBERNETES_NAMESPACE_F; }
 k_write_fasts(){ k_get_context > $KUBERNETES_CONTEXT_F; k_get_namespace > $KUBERNETES_NAMESPACE_F; }
 k_write_namespaces(){ echo "$(kubectl get namespaces -o name | cut -d / -f 2) $EXTRA_NAMESPACES" > $KUBERNETES_NAMESPACES_F; }
@@ -38,10 +38,11 @@ complete -W "$(cat $KUBERNETES_NAMESPACES_F)" kns
 
 # Shortcut to kubectl, allowing different versions of the client
 k(){
-    case $(k_get_context_fast) in
-        exception) _kubectl=kubectl-1.9.2;;
-        *) _kubectl=$KUBERNETES_KUBECTL_DEFAULT;;
-    esac
+    #case $(k_get_context_fast) in
+    #    exception) _kubectl=kubectl-1.9.2;;
+    #    *) _kubectl=$KUBERNETES_KUBECTL_DEFAULT;;
+    #esac
+    _kubectl=$KUBERNETES_KUBECTL_DEFAULT
     $_kubectl $@
 }
 
