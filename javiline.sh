@@ -82,7 +82,11 @@ __javiline() {
         __powerline_git_info="$(__git_info)"
         local git="\\[$COLOR_GIT\\]\${__powerline_git_info}\\[$RESET\\]"
 
-        PS1="\h $kube$git$cwd$symbol "
+        if [ "$__kube_context" ]; then
+            PS1="\h $kube$git$cwd$symbol "
+        else
+            PS1="\h $git$cwd$symbol "
+        fi
     }
 
     PROMPT_COMMAND="ps1${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
