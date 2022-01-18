@@ -3,7 +3,7 @@
 #AMIXER="/usr/bin/amixer -q -D pulse sset Master"
 SPOTIFY_DBUS="dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2"
 
-SINKS=$(pacmd list-sinks|awk '/ index:/{ print $NF }')
+SINKS=$(pactl list|grep ^Sink| cut -d \# -f 2)
 
 ## This is a test ##
 ## Following lines will print the sink index of a single app:
