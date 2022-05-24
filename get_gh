@@ -5,9 +5,23 @@
 version=$1
 outdir=/tmp
 repo=cli/cli
+arch=amd64
 
-[ "$version" ] || version=$(curl -s https://api.github.com/repos/${repo}/releases/latest | grep tag_name | cut -d '"' -f 4)
-[ "${version::1}" != "v" ] && version=v${version}
+if [ -e /etc/apt/sources.list ]; then
+    format=deb
+elif [ -e /etc/redhat-release ]; then
+    format=rpm
+fi
 
-$debug curl -L https://github.com/${repo}/releases/download/${version}/gh_2.1.0_linux_386.deb -o ${outdir}/gh-${version}.deb
-$debug sudo dpkg -i ${outdir}/gh-${version}.deb
+
+[ "$version" ] || version=$(curl -sI https://github.com/${repo}/releases/latest| awk -F/ '/^location/{print $NF}' | tr -d v\\r)
+filename=gh_${version}_linux_${arch}.${format}
+
+$debug curl -sL https://github.com/${repo}/releases/download/v${version}/${filename} -o ${outdir}/${filename}
+
+case $format in
+    deb) command="dpkg -i" ;;
+    rpm) command="rpm -Uvh" ;;
+esac
+
+$debug sudo ${command} ${outdir}/${filename}
