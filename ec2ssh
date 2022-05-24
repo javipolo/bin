@@ -7,14 +7,14 @@
 #    - ec2ssh [-n 2] name_tag
 #    - ec2ssh IP
 
-username=ubuntu
+username=centos
 keypath=~/.ssh/aws
 ssh_opts=""
 # Use awless or awscli (auto tries awless, and if not, awscli)
 backend=auto
 ssh_strict=false
 # Route through VPN
-add_route=true
+add_route=false
 route='$ip dev tun0 scope link'
 
 usage(){
