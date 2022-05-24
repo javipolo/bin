@@ -7,29 +7,13 @@
 # - xrandr  (used to find out if we are using multiple screens and to get
 #            current resolution)
 
-names="Telegram chrome slack skype Spotify"
+apps_left=""
+apps_center="terminal"
+apps_right="Telegram slack skype Spotify chrome"
+screens=${@:-left center right}
 
 get_wids(){
     xdotool search --maxdepth 2 --onlyvisible --name "$1" || echo NULL
-}
-
-rearrange_terminal(){
-    resize_width=15
-    tmp_w=18
-    tmp_h=9
-    name_terminal="terminal"
-    for winid in $(get_wids "$name_terminal"); do
-        if [ "$winid" != "NULL" ]; then
-            # Minimize window
-            wmctrl -i -r $winid -b remove,maximized_vert,maximized_horz
-            # Move window to display
-            wmctrl -i -r $winid -e 0,$resize_width,0,$tmp_w,$tmp_h
-            # Maximize window
-            wmctrl -i -r $winid -b add,maximized_vert,maximized_horz
-            # And set sticky
-            wmctrl -i -r $winid -b remove,sticky
-        fi
-    done
 }
 
 move_to_desktop(){
@@ -39,42 +23,51 @@ move_to_desktop(){
 }
 
 rearrange(){
-    for winid in $(get_wids "$1"); do
+    local app="$1"
+    local screen=$2
+    local laptop_lid=$(awk '{print $NF}' /proc/acpi/button/lid/LID/state)
+    local n
+    if [ "$laptop_lid" == "closed" ]; then
+        case $screen in
+            center) n=0;;
+            right) n=1;;
+            # If lid is closed, left screen stuff goes to right screen
+            left) n=1;;
+        esac
+    else
+        case $screen in
+            left) n=0;;
+            center) n=1;;
+            right) n=2;;
+        esac
+    fi
+
+    local num_displays=$(xrandr | grep \* | wc -l)
+    local resolution=$(xdpyinfo | awk '/dimensions/{print $2}')
+    local width=$(echo $resolution | cut -d x -f 1)
+    local resize_width=$(( $n * ( width/num_displays) + 100))
+    local tmp_w=10
+    local tmp_h=10
+
+    for winid in $(get_wids "$app"); do
         if [ "$winid" != "NULL" ]; then
-            # Minimize window
             wmctrl -i -r $winid -b remove,maximized_vert,maximized_horz
-            # Move window to display
             wmctrl -i -r $winid -e 0,$resize_width,0,$tmp_w,$tmp_h
-            # Maximize window
             wmctrl -i -r $winid -b add,maximized_vert,maximized_horz
-            # And set sticky
             wmctrl -i -r $winid -b add,sticky
         fi
     done
 }
 
-# Iterate on $names, unless we supplied some as parameter
-do_names=${@:-$names}
-
-declare -i num_displays
 num_displays=$(xrandr | grep \* | wc -l)
 
 # Only do things if we are using more than 1 display
 if [ $num_displays -gt 1 ]; then
-    # Calculate more than half the visible screen
-    resolution=$(xdpyinfo | awk '/dimensions/{print $2}')
-    width=$(echo $resolution | cut -d x -f 1)
-    resize_width=15
-
-    rearrange_terminal
-    resize_width=$(( ( width/num_displays) + 100))
-    tmp_w=1800
-    tmp_h=900
-    for name in $do_names; do
-        # Second screen
-        rearrange $name
+    for screen in $screens; do
+        apps=apps_${screen}
+        for name in ${!apps}; do
+            rearrange $name $screen
+        done
     done
-    # Move spotify to desktop 11 (11-1)
-    move_to_desktop spotify 3
 fi
 
