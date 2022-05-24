@@ -7,20 +7,33 @@
 # It uses my custom kubernetes functions (https://github.com/javipolo/bin/functions.d)
 
 __javiline() {
+    color_darkgreen='\033[38;5;71m'
+    color_green='\033[38;5;121m'
+    color_yellow='\033[38;5;220m'
+    color_red='\033[38;5;204m'
+    color_blue='\033[38;5;81m'
+    color_reset='\033[m'
+    color_darkblue='\033[38;5;39m'
+
     # Colorscheme
+    color_git=$color_darkgreen
+    color_kube=$color_green
+    color_kube_symbol=$color_blue
+    color_kube_panic=$color_red
+    color_kube_warning=$color_yellow
 
-    COLOR_CWD='\033[38;5;39m'
-    COLOR_GIT='\033[38;5;71m'
-    COLOR_SUCCESS='\033[38;5;121m'
-    COLOR_FAILURE='\033[38;5;204m'
-    COLOR_WARNING='\033[38;5;220m'
-    RESET='\033[m'
+    # kubernetes clusters
+    kube_cluster_panic=
+    kube_cluster_warning=
 
-    SYMBOL_GIT_BRANCH='⑂'
-    SYMBOL_GIT_MODIFIED='*'
-    SYMBOL_GIT_PUSH='↑'
-    SYMBOL_GIT_PULL='↓'
-    PS_SYMBOL='$'
+    # Symbols
+    symbol_git_branch='⑂'
+    symbol_git_modified='*'
+    symbol_git_push='↑'
+    symbol_git_pull='↓'
+    symbol_kube='⎈'
+    ps_symbol='\$'
+
 
     __git_info() { 
         local git_eng="env LANG=C git"   # force git output in English to make our work easier
@@ -30,7 +43,7 @@ __javiline() {
 
         if [[ -n "$ref" ]]; then
             # prepend branch symbol
-            ref=$SYMBOL_GIT_BRANCH$ref
+            ref=$symbol_git_branch$ref
         else
             # get tag name or short unique hash
             ref=$($git_eng describe --tags --always 2>/dev/null)
@@ -43,10 +56,10 @@ __javiline() {
         # scan first two lines of output from `git status`
         while IFS= read -r line; do
             if [[ $line =~ ^## ]]; then # header line
-                [[ $line =~ ahead\ ([0-9]+) ]] && marks+=" $SYMBOL_GIT_PUSH${BASH_REMATCH[1]}"
-                [[ $line =~ behind\ ([0-9]+) ]] && marks+=" $SYMBOL_GIT_PULL${BASH_REMATCH[1]}"
+                [[ $line =~ ahead\ ([0-9]+) ]] && marks+=" $symbol_git_push${BASH_REMATCH[1]}"
+                [[ $line =~ behind\ ([0-9]+) ]] && marks+=" $symbol_git_pull${BASH_REMATCH[1]}"
             else # branch is modified if output contains more lines after the header line
-                marks="$SYMBOL_GIT_MODIFIED$marks"
+                marks="$symbol_git_modified$marks"
                 break
             fi
         done < <($git_eng status --porcelain --branch 2>/dev/null)  # note the space between the two <
@@ -55,41 +68,43 @@ __javiline() {
         printf "$ref$marks "
     }
 
-#    __kube_info(){
-#        # Using kubectl is WAAAY slower, so use this shit
-#        #grep ^current-context ${KUBECONFIG:-~/.kube/config}|cut -d ' ' -f 2| tr -d \\n
-#        k_get_context
-#    }
+    __kube_info(){
+        type k_get_context_fast 2>&1 > /dev/null || return
+        local __kube_context="$(k_get_context_fast)"
+        local __kube_namespace="$(k_get_namespace_fast)"
 
-    ps1() {
+        [[ -z "$__kube_context" ]] && return
 
-        local symbol="$PS_SYMBOL"
-        local cwd="\\[$COLOR_CWD\\]\w\\[$RESET\\]"
+        case "${__kube_context}" in
+            $kube_cluster_panic) color_kube="$color_kube_panic";;
+            $kube_cluster_warning) color_kube="$color_kube_warning";;
+        esac
 
-        #  KUBERNETES
-        __kube_context="$(k_get_context_fast)"
-        __kube_namespace="$(k_get_namespace_fast)"
-        [ "${__kube_context:0,-2}" == "st" ] \
-            && COLOR_KUBE="$COLOR_SUCCESS"  \
-            || COLOR_KUBE="$COLOR_FAILURE"
-        [ "${__kube_context}" == "paypn" ] && COLOR_KUBE="$COLOR_WARNING"
-        local kube="\\[${COLOR_KUBE}\\]\${__kube_context}\\[${RESET}\\]"
-        # Add namespace if its not the default one
-        [ "${__kube_namespace}" != "default" ] && kube="${kube}/\\[${COLOR_KUBE}\\]${__kube_namespace}\\[${RESET}\\]"
-        kube="(${kube}) "
-
-        # GIT
-        __powerline_git_info="$(__git_info)"
-        local git="\\[$COLOR_GIT\\]\${__powerline_git_info}\\[$RESET\\]"
-
-        if [ "$__kube_context" ]; then
-            PS1="\h $kube$git$cwd$symbol "
-        else
-            PS1="\h $git$cwd$symbol "
-        fi
+        local kube_symbol="\\[${color_kube_symbol}\\]${symbol_kube}\\[$color_reset\\]"
+        local kube_cluster="\\[${color_kube}\\]${__kube_context}\\[${color_reset}\\]"
+        [[ "${__kube_namespace}" != "default" ]] && \
+            local kube_ns="/\\[${color_kube}\\]${__kube_namespace}\\[${color_reset}\\]"
+        printf "${kube_symbol}${kube_cluster}${kube_ns} "
     }
 
-    PROMPT_COMMAND="ps1${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+    ps1() {
+        # Hostname
+        local hostname=${PROMPT_HOSTNAME:-\\h}
+        # Working Directory
+        local pwd=$(command -v short_prompt_pwd 2>&1 > /dev/null && short_prompt_pwd)
+        local cwd="\\[$color_darkblue\\]${pwd:-\\w}\\[$color_reset\\]"
+        #  KUBERNETES
+        local kube=$(__kube_info)
+        # GIT
+        local __powerline_git_info="$(__git_info)"
+        git="\\[$color_git\\]${__powerline_git_info}\\[$color_reset\\]"
+        # Shell symbol
+        local symbol="$ps_symbol"
+
+        PS1="$hostname $kube$git$cwd$symbol "
+    }
+
+    PROMPT_COMMAND="ps1"
 }
 
 __javiline
