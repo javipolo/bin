@@ -206,3 +206,9 @@ kdebug(){
 
     kubectl run --restart=Never -it $extra_args --image $image $name
 }
+
+kgetall(){
+    local namespace=${1:-default}
+    kubectl api-resources --verbs=list --namespaced -o name \
+          | xargs -n 1 kubectl get --show-kind --ignore-not-found -n $namespace
+}
