@@ -1,0 +1,6 @@
+#!/bin/bash
+
+app=$1
+num=${2:-1}
+
+wmctrl -i -a $(wmctrl -l|grep -i $app|head -n${num} | tail -n1|cut -d ' ' -f 1)
