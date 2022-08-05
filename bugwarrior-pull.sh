@@ -2,17 +2,31 @@
 
 tmpfile=$(mktemp)
 udafile=~/.task/conf/uda
+debugfile=~/.task/debug.log
 debug=false
+debugheader="
 
-[ "$1" == "debug" ] && debug=true
-[ "$debug" == "true" ] && tmpfile=/tmp/task.log
+
+====================
+       NEW RUN
+====================
+"
+
+[ "$1" == "debug" ] && shift && debug=true
+[ "$1" ] && export BUGWARRIORRC=$HOME/.bugwarriorrc.$1
+
 _cleanup(){
-    [ "$debug" != "true" ] && rm -f $tmpfile
+    if [[ "$debug" == "true" ]]; then
+        echo "$debugheader" >> $debugfile
+        cat $tmpfile >> $debugfile
+    else
+        rm -f $tmpfile $debugfile
+    fi
 }
 trap _cleanup exit
 
 bugwarrior pull > $tmpfile 2>&1
-bugwarrior uda > $udafile
+# bugwarrior uda > $udafile
 
 updated_tasks=$(grep "Updating task" $tmpfile | cut -d"," -f1 | cut -d" " -f3)
 
