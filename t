@@ -2,6 +2,8 @@
 
 # Move focus back to current window when opening URLs
 preserve_focus=true
+# default_filter="-ignore"
+default_filter=$(grep -E '^report.ls.filter=' ~/.taskrc | cut -d = -f 2-)
 
 usage(){
   cat << EOF
@@ -18,6 +20,9 @@ Usage:
   d TASKS         Tag as Doing
   o TASK          Open task URL
   h               This help
+
+  you can use a tag filter as args, example:
+  t o +u          Open all the tasks that are tagged +u (updated)
 
 Examples:
   t w 20
@@ -53,20 +58,29 @@ open_url(){
     if [ "$preserve_focus" == "true" ]; then
         declare -i n=0
         # Wait until focus jumps to another window or until timeout of 3 seconds
-        until xdotool getwindowfocus | grep -qvx $window; do
+        until xdotool getwindowfocus | grep -qvx "$window"; do
             sleep 0.1
-            n=n+1
+            n=$((n+1))
             [ $n -gt 30 ] && break
         done
         # Set window focus back
-        xdotool windowfocus $window
+        xdotool windowfocus "$window"
     fi
 }
+
+get_ids(){
+    if echo "$1" | grep -qE '^[\+-]'; then
+        task _uuid $1 $default_filter
+    else
+        echo $@
+    fi
+}
+
 case $1 in
-  w) shift; echo all | task mod -n -u +w -q -d -next $@ ;;
-  q) shift; echo all | task mod -n -u -w +q -d -next $@ ;;
-  d) shift; echo all | task mod -n -u -w -q +d -next $@ ;;
-  o) shift; for w in $@; do open_url "$w"; done ;;
+  w) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u +w -q -d -next; done ;;
+  q) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w +q -d -next; done ;;
+  d) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w -q +d -next; done ;;
+  o) shift; for id in $(get_ids "$@"); do open_url "$id"; done ;;
   h|help) usage ;;
-  *) task $@ ;;
+  *) task "$@" ;;
 esac
