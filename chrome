@@ -1,0 +1,4 @@
+# args="--use-gl=desktop --enable-features=VaapiVideoDecoder --disable-features=UseChromeOSDirectVideoDecoder"
+args='--enable-features=VaapiVideoDecoder'
+
+google-chrome $args $@
