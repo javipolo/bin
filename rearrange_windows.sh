@@ -9,8 +9,8 @@
 
 apps_left=""
 apps_center="terminal"
-apps_right="Telegram slack skype Spotify chrome"
-screens=${@:-left center right}
+apps_right="telegram slack skype spotify chrome"
+screens=${*:-left center right}
 
 get_wids(){
     xdotool search --maxdepth 2 --onlyvisible --name "$1" || echo NULL
@@ -23,10 +23,13 @@ move_to_desktop(){
 }
 
 rearrange(){
-    local app="$1"
-    local screen=$2
-    local laptop_lid=$(awk '{print $NF}' /proc/acpi/button/lid/LID/state)
-    local n
+    local app screen laptop_lid n num_displays resolution width resize_width tmp_w tmp_h
+    declare -i num_displays
+
+    app="$1"
+    screen=$2
+    laptop_lid=$(awk '{print $NF}' /proc/acpi/button/lid/LID/state)
+
     if [ "$laptop_lid" == "closed" ]; then
         case $screen in
             center) n=0;;
@@ -42,12 +45,12 @@ rearrange(){
         esac
     fi
 
-    local num_displays=$(xrandr | grep \* | wc -l)
-    local resolution=$(xdpyinfo | awk '/dimensions/{print $2}')
-    local width=$(echo $resolution | cut -d x -f 1)
-    local resize_width=$(( $n * ( width/num_displays) + 100))
-    local tmp_w=10
-    local tmp_h=10
+    num_displays=$(xrandr | grep -c '*')
+    resolution=$(xdpyinfo | awk '/dimensions/{print $2}')
+    width=$(echo $resolution | cut -d x -f 1)
+    resize_width=$(( n * ( width/num_displays) + 100))
+    tmp_w=10
+    tmp_h=10
 
     for winid in $(get_wids "$app"); do
         if [ "$winid" != "NULL" ]; then
@@ -59,7 +62,8 @@ rearrange(){
     done
 }
 
-num_displays=$(xrandr | grep \* | wc -l)
+declare -i num_displays
+num_displays=$(xrandr | grep -c '*')
 
 # Only do things if we are using more than 1 display
 if [ $num_displays -gt 1 ]; then
