@@ -87,6 +87,10 @@ __javiline() {
         printf "${kube_symbol}${kube_cluster}${kube_ns} "
     }
 
+    __triage_info(){
+      pwd | grep -q AITRIAGE && pwd | tr / " "| xargs -n1 | grep ^AITRIAGE
+    }
+
     ps1() {
         # Hostname
         local hostname=${PROMPT_HOSTNAME:-\\h}
@@ -101,7 +105,11 @@ __javiline() {
         # Shell symbol
         local symbol="$ps_symbol"
 
-        PS1="$hostname $kube$git$cwd$symbol "
+        local triage=$(__triage_info)
+        [[ ! -z "$triage" ]] && hostname=$triage
+
+        # PS1="$hostname $kube$git$cwd$symbol "
+        PS1="$hostname $git$cwd$symbol "
     }
 
     PROMPT_COMMAND="ps1"

@@ -10,29 +10,34 @@ RIGHT=$LENOVO
 MODE=1920x1080
 extra=""
 
-if [ "$1" == "office" ]; then
-    LEFT=DP-2
-    RIGHT=$LAPTOP
+location=$(location_detector)
+
+case $location in
+  rhcolonial) autorandr -c; exit 0;;
+esac
+
+if [ "$1" == "force" ]; then
+  xrandr --output $LEFT --off --output $CENTER --off --output $RIGHT --off
 fi
 
 if [ "$(awk '{print $NF}' /proc/acpi/button/lid/LID/state)" == "open" ]; then
     # With laptop lid open
-    if [ "$(xrandr | grep $LEFT |grep ' connected')" ]; then
+    if xrandr | grep $LEFT |grep -q ' connected'; then
         extra="$extra --output $LEFT --left-of $CENTER --mode ${MODE}"
     fi
 
-    if [ "$(xrandr | grep $RIGHT |grep ' connected')" ]; then
+    if xrandr | grep $RIGHT |grep -q ' connected'; then
         extra="$extra --output $RIGHT --right-of $CENTER --mode ${MODE}"
     fi
 
     xrandr --output $CENTER --primary --mode ${MODE} $extra
 else
     # With laptop lid closed
-    if [ "$(xrandr | grep $CENTER |grep ' connected')" ]; then
+    if xrandr | grep $CENTER |grep -q ' connected'; then
         extra="$extra --output $CENTER --left-of $RIGHT --mode ${MODE}"
     fi
 
-    if [ "$(xrandr | grep $RIGHT |grep ' connected')" ]; then
+    if xrandr | grep $RIGHT |grep -q ' connected'; then
         extra="$extra --output $RIGHT --primary --mode ${MODE}"
     fi
 

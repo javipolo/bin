@@ -12,11 +12,14 @@ tasks_new="#[bg=red]#[fg=brightwhite] "
 # Updated tasks are marked with tags +u -w
 tags_upd="+u -w"
 tasks_upd="#[bg=color172] "
+tasks_error="#[bg=red]#[fg=brightwhite]E"
 
-if task $tags_new &>/dev/null; then
-    state="$tasks_new"
+if [[ -f $HOME/.task/lockedtask ]]; then
+  state="$tasks_error"
+elif task $tags_new &>/dev/null; then
+  state="$tasks_new"
 elif task $tags_upd &>/dev/null; then
-    state="$tasks_upd"
+  state="$tasks_upd"
 fi
 
 echo "$state"

@@ -1,0 +1,10 @@
+#!/bin/bash
+pactl="pactl --server unix:/run/user/$(id -u javipolo)/pulse/native"
+declare -i retries retry
+retries=10
+sink_name=alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_Play__3_00188483-00.analog-stereo
+$pactl list short sinks | grep RUNNING | grep -q $sink_name \
+  || until $pactl set-default-sink $sink_name; do
+      [[ $retry -eq $retries ]] && continue
+      sleep 1
+    done

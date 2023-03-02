@@ -210,5 +210,6 @@ kdebug(){
 kgetall(){
     local namespace=${1:-default}
     kubectl api-resources --verbs=list --namespaced -o name \
-          | xargs -n 1 kubectl get --show-kind --ignore-not-found -n $namespace
+      | grep -v packagemanifests.packages.operators.coreos.com \
+      | xargs -n 1 kubectl get --show-kind --ignore-not-found -n $namespace
 }
