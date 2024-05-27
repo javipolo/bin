@@ -1,0 +1,15 @@
+#!/bin/bash
+
+location=$(location_detector)
+
+default_args=""
+zoom="--force-device-scale-factor=1.5"
+extra_args=$@
+
+case $location in
+    rhcolonial) args="$default_args $zoom";;
+    porto) args="$default_args $zoom";;
+esac
+
+
+google-chrome $args $extra_args
