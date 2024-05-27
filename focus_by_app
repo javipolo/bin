@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Some apps change the tittle bar randomly, so we need a more aggressive way of finding the window
+
+app=$1
+
+# get title
+title=$(xwininfo -root -tree | grep '("'"$app"'"' | head -n1 | cut -d \" -f 2)
+wmctrl -a "$title"
