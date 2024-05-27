@@ -14,12 +14,16 @@ tags_upd="+u -w"
 tasks_upd="#[bg=color172] "
 tasks_error="#[bg=red]#[fg=brightwhite]E"
 
+lockfile=$HOME/.task/lockedtask
+
 if [[ -f $HOME/.task/lockedtask ]]; then
-  state="$tasks_error"
+    state="$tasks_error"
+    # If lockfile is older than 10 minutes, autoclean
+    find "$lockfile" -mmin +10 | grep -q "$lockfile" && t rmlock
 elif task $tags_new &>/dev/null; then
-  state="$tasks_new"
+    state="$tasks_new"
 elif task $tags_upd &>/dev/null; then
-  state="$tasks_upd"
+    state="$tasks_upd"
 fi
 
 echo "$state"

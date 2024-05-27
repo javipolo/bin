@@ -4,7 +4,8 @@
 preserve_focus=true
 # default_filter="-ignore"
 default_filter=$(grep -E '^report.ls.filter=' ~/.taskrc | cut -d = -f 2-)
-default_action_filter="+u or +n"
+filter_new="+u or +n"
+# filter_doing="+d"
 web_browser_command="xdg-open"
 web_browser_command="google-chrome --profile-directory=Default"
 
@@ -51,7 +52,7 @@ My tags:
   ignore            - Do not show in list EVER
 
 EOF
-  exit 1
+    exit 1
 }
 
 # Save current window_id
@@ -81,33 +82,36 @@ open_url(){
 }
 
 get_ids(){
+    local default_action_filter tmp_var
+    default_action_filter=$filter_new
+    [[ "$1" == "--filter" ]] && { tmp_var=filter_$2; default_action_filter=${!tmp_var}; shift 2; }
     first=${1:-$default_action_filter}
     if echo "$first" | grep -qE '^[\+-]'; then
-      task _uuid "($first) and ($default_filter)"
+        task _uuid "($first) and ($default_filter)"
     else
         echo "$*"
     fi
 }
 
 get_annotations(){
-  # This is very dirty ....
-  (
-    echo "# $(task _get $1.description)"
-    task info "$1" | sed -n '/^Description/,/^Status/{//!p}'| cut -c 15- | perl -0pe 's/\n(?!( ))/ /g' | cut -d ' ' -f 5-
-  ) | bat --language=md --plain
+    # This is very dirty ....
+    (
+        echo "# $(task _get $1.description)"
+        task info "$1" | sed -n '/^Description/,/^Status/{//!p}'| cut -c 15- | perl -0pe 's/\n(?!( ))/ /g' | cut -d ' ' -f 5-
+    ) | bat --language=md --plain
 }
 
 case $1 in
-  rmlock) rm -f $HOME/.task/lockedtask /home/javipolo/.task/bugwarrior.lockfile;;
-  ns) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod +noshow; done ;;
-  i) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod +ignore; done ;;
-  w) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u +w -q -d -next -noshow; done ;;
-  q) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w +q -d -next -noshow; done ;;
-  d) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w -q +d -next -noshow; done ;;
-  wo) shift; for id in $(get_ids "$@"); do open_url "$id"; task "$id" mod -n -u +w -q -d -next -noshow; done ;;
-  o) shift; for id in $(get_ids "$@"); do open_url "$id"; done ;;
-  a) shift; task annotate "$@" ;;
-  sa) shift; for id in $(get_ids "$@"); do get_annotations "$id"; done ;;
-  h|help) usage ;;
-  *) task "$@" ;;
+    rmlock) rm -f $HOME/.task/lockedtask /home/javipolo/.task/bugwarrior.lockfile;;
+    ns) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod +noshow; done ;;
+    i) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod +ignore; done ;;
+    w) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u +w -q -d -next -noshow; done ;;
+    q) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w +q -d -next -noshow; done ;;
+    d) shift; for id in $(get_ids "$@"); do echo all | task "$id" mod -n -u -w -q +d -next -noshow; done ;;
+    wo) shift; for id in $(get_ids "$@"); do open_url "$id"; task "$id" mod -n -u +w -q -d -next -noshow; done ;;
+    o) shift; for id in $(get_ids "$@"); do open_url "$id"; done ;;
+    a) shift; task annotate "$@" ;;
+    sa) shift; for id in $(get_ids --filter doing "$@"); do get_annotations "$id"; done ;;
+    h|help) usage ;;
+    *) task "$@" ;;
 esac
